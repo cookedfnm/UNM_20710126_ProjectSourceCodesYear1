@@ -1,6 +1,5 @@
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
-
 // ================= PIN CONFIGURATION =================
 
 // Right motor
