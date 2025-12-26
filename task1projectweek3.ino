@@ -22,7 +22,7 @@ volatile long pulsesRight = 0;
 
 // ================= ENCODER PARAMETERS =================
 const int   PULSES_PER_REV   = 20;       // slots per encoder disc
-const float WHEEL_DIAMETER   = 0.067;    // wheel diameter in meters (67 mm)
+const float WHEEL_DIAMETER   = 0.065;    // wheel diameter in meters (65 mm)
 const float WHEEL_CIRC       = 3.14159265359 * WHEEL_DIAMETER;  // circumference
 
 // ================= SPEED SETTINGS =================
