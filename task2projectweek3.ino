@@ -15,7 +15,7 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 const int NORMAL_SPEED = 135;           // default flat speed
 int BASE_SPEED = NORMAL_SPEED;          // current forward speed
 
-// ⚙️ WHEEL TRIM
+// WHEEL TRIM
 // Robot curves LEFT → right wheel too fast → RIGHT_WHEEL_OFFSET more negative.
 // Robot curves RIGHT → left wheel too fast → LEFT_WHEEL_OFFSET more negative.
 const int RIGHT_WHEEL_OFFSET = 20;     // strong slowdown for right wheel
@@ -101,7 +101,7 @@ void motorB(int s) {
   }
 }
 
-// 🚗 Straight drive with hard-coded trims on each wheel
+// Straight drive with hard-coded trims on each wheel
 void moveForward() {
   int rightPWM = BASE_SPEED + RIGHT_WHEEL_OFFSET;   // slow right
   int leftPWM  = BASE_SPEED + LEFT_WHEEL_OFFSET;    // boost left
@@ -116,7 +116,6 @@ void moveForward() {
   motorB(leftPWM);
 }
 
-// Spins still can use base values — we care more about straight tracking
 void spinRight() {
   motorA(-SPIN_BW);
   motorB(SPIN_FW);
@@ -328,3 +327,4 @@ void loop() {
   lcd.print(label);
   lcd.print(" ");
 }
+
