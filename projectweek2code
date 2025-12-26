@@ -1,0 +1,275 @@
+#include <LiquidCrystal.h>
+#include <PinChangeInterrupt.h>
+
+// ================= MOTOR & SENSOR PINS =================
+
+const int ENA = 3;    // Right motor PWM
+const int IN1 = A3;   // Right motor direction 1
+const int IN2 = 13;   // Right motor direction 2
+
+const int ENB = 11;   // Left motor PWM
+const int IN3 = 2;    // Left motor direction 1
+const int IN4 = 12;   // Left motor direction 2
+
+const int IR_Left  = A5;   // Left IR sensor
+const int IR_Right = A4;   // Right IR sensor
+
+// ============== Encoder Pins ================
+const int Encoder_L = A1;  // CHANGE if needed
+const int Encoder_R = A2;  // CHANGE if needed
+
+volatile long pulsesLeft  = 0;
+volatile long pulsesRight = 0;
+
+// ================= ENCODER PARAMETERS =================
+// CHANGE THESE TO MATCH YOUR ROBOT
+const int   PULSES_PER_REV   = 20;       // slots per encoder disc
+const float WHEEL_DIAMETER   = 0.065;    // wheel diameter in meters (65 mm)
+const float WHEEL_CIRC       = 3.14159265359 * WHEEL_DIAMETER;  // circumference
+
+// ================= SPEED SETTINGS =================
+#define BASE_SPEED    135     // straight speed
+#define OUTER_TURN    200     // outer wheel when correcting
+#define INNER_TURN    80     // inner wheel when correcting
+#define SPIN_FW       170     // spin-correction forward wheel
+#define SPIN_BW       140     // spin-correction backward wheel
+
+// ================= TIME SETTINGS =================
+#define MIN_RUN_TIME 16000UL  // 16 seconds minimum before allowed to stop
+
+int lastTurn = 0;          // 0=none, 1=left, 2=right
+
+// ============== LCD SETUP ==============
+const int rs = 8, en = 9, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+// Time tracking
+unsigned long start_time = 0;
+bool isMoving = false;
+
+// ================= INTERRUPTS =================
+void leftEncoderISR() {
+  pulsesLeft++;
+}
+
+void rightEncoderISR() {
+  pulsesRight++;
+}
+
+// ================= DISTANCE FUNCTIONS =================
+float getLeftDistanceM() {
+  long p;
+  noInterrupts();
+  p = pulsesLeft;
+  interrupts();
+  return (p / (float)PULSES_PER_REV) * WHEEL_CIRC;   // meters
+}
+
+float getRightDistanceM() {
+  long p;
+  noInterrupts();
+  p = pulsesRight;
+  interrupts();
+  return (p / (float)PULSES_PER_REV) * WHEEL_CIRC;   // meters
+}
+
+float getAverageDistanceCm() {
+  float dL = getLeftDistanceM();
+  float dR = getRightDistanceM();
+  return ((dL + dR) / 2.0) * 100.0;  // convert to cm
+}
+
+// ============== MOTOR CONTROL (full: forward, reverse, stop) ==============
+void motorA(int speed) { // Right motor
+  if (speed > 0) {              // FORWARD
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, speed);
+  } 
+  else if (speed < 0) {         // REVERSE
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    analogWrite(ENA, -speed);
+  }
+  else {                        // STOP
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 0);
+  }
+}
+
+void motorB(int speed) { // Left motor
+  if (speed > 0) {              // FORWARD
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, speed);
+  } 
+  else if (speed < 0) {         // REVERSE
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+    analogWrite(ENB, -speed);
+  }
+  else {                        // STOP
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, 0);
+  }
+}
+
+// ================== HIGH-LEVEL MOVEMENT ==================
+void moveForward() {
+  motorA(BASE_SPEED);
+  motorB(BASE_SPEED);
+}
+
+// Physically turn LEFT: right wheel faster, left wheel slower
+void turnLeft() {
+  motorA(OUTER_TURN);   // Right motor fast
+  motorB(INNER_TURN);   // Left motor slow
+}
+
+// Physically turn RIGHT: left wheel faster, right wheel slower
+void turnRight() {
+  motorA(INNER_TURN);   // Right motor slow
+  motorB(OUTER_TURN);   // Left motor fast
+}
+
+// Spin in place LEFT (nose left)
+void spinLeft() {
+  motorA(SPIN_FW);      // Right motor forward
+  motorB(-SPIN_BW);     // Left motor backward
+}
+
+// Spin in place RIGHT (nose right)
+void spinRight() {
+  motorA(-SPIN_BW);     // Right motor backward
+  motorB(SPIN_FW);      // Left motor forward
+}
+
+void stopMotors() {
+  motorA(0);
+  motorB(0);
+}
+
+// ================= SETUP =================
+void setup() {
+  pinMode(IR_Left, INPUT);
+  pinMode(IR_Right, INPUT);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  
+  // LCD Setup
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("Dist: 0.00 cm");
+  lcd.setCursor(0, 1);
+  lcd.print("Time: 00:000");
+
+  Serial.begin(9600);
+  delay(1000);
+
+  // Encoder pins
+  pinMode(Encoder_L, INPUT_PULLUP);
+  pinMode(Encoder_R, INPUT_PULLUP);
+
+  attachPCINT(digitalPinToPCINT(Encoder_L), leftEncoderISR,  RISING);
+  attachPCINT(digitalPinToPCINT(Encoder_R), rightEncoderISR, RISING);
+
+  // Start moving
+  moveForward();
+  start_time = millis();
+  isMoving = true;
+}
+
+// ================= LOOP =================
+void loop() {
+  int L = digitalRead(IR_Left);
+  int R = digitalRead(IR_Right);
+
+  // Time calculations
+  unsigned long current_time = millis();
+  unsigned long elapsed      = current_time - start_time;
+  bool minTimeReached        = (elapsed >= MIN_RUN_TIME);
+
+  // ========= LINE FOLLOWING LOGIC (your original pattern) =========
+
+  // 1. Both sensors on WHITE
+  if (L == 1 && R == 1) {
+    if (lastTurn == 1) {        // overshoot from a left corner
+      spinLeft();
+    }
+    else if (lastTurn == 2) {   // overshoot from a right corner
+      spinRight();
+    }
+    else {
+      moveForward();
+      lastTurn = 0;
+    }
+  }
+  // 2. (0,1) → drifting left → turn RIGHT
+  else if (L == 0 && R == 1) {
+    turnRight();
+    lastTurn = 2;
+  }
+  // 3. (1,0) → drifting right → turn LEFT
+  else if (L == 1 && R == 0) {
+    turnLeft();
+    lastTurn = 1;
+  }
+  // 4. (0,0) → both sensors on BLACK
+  else if (L == 0 && R == 0) {
+    if (minTimeReached) {
+      // ONLY STOP if 15s has passed AND both sensors are black
+      stopMotors();
+      isMoving = false;
+
+      float distCm = getAverageDistanceCm();
+      int seconds  = elapsed / 1000;
+      int ms       = elapsed % 1000;
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Finished!");
+      lcd.setCursor(0, 1);
+      lcd.print("D:");
+      lcd.print(distCm, 1);
+      lcd.print("cm T:");
+      lcd.print(seconds);
+      lcd.print("s");
+
+      while (1);  // freeze
+    } else {
+      // Saw "finish" too early → ignore, keep going
+      moveForward();
+    }
+  }
+
+  // ===== LCD distance & time update =====
+  if (isMoving) {
+    float avgDistance = getAverageDistanceCm();
+    int seconds       = elapsed / 1000;
+    int milliseconds  = elapsed % 1000;
+
+    // Distance line
+    lcd.setCursor(0, 0);
+    lcd.print("Dist: ");
+    lcd.print(avgDistance, 2);
+    lcd.print("cm  ");   // spaces clear leftovers
+
+    // Time line
+    lcd.setCursor(0, 1);
+    lcd.print("Time: ");
+    if (seconds < 10) lcd.print("0");
+    lcd.print(seconds);
+    lcd.print(":");
+    if (milliseconds < 100) lcd.print("0");
+    if (milliseconds < 10) lcd.print("0");
+    lcd.print(milliseconds);
+  }
+}
