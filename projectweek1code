@@ -1,0 +1,75 @@
+// ================= MOTOR PINS =================
+const int ENA = 3;    // Right motor PWM
+const int IN1 = A3;   // Right motor direction 1
+const int IN2 = 13;   // Right motor direction 2
+
+const int ENB = 11;   // Left motor PWM
+const int IN3 = 2;    // Left motor direction 1
+const int IN4 = 12;   // Left motor direction 2
+
+// ================= SPEED SETTINGS =================
+#define BASE_SPEED  135      // straight speed
+
+// ============== MOTOR CONTROL ==============
+void motorA(int speed) { // Right motor
+  if (speed > 0) {              // FORWARD
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, speed);
+  } 
+  else {                        // STOP
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 0);
+  }
+}
+
+void motorB(int speed) { // Left motor
+  if (speed > 0) {              // FORWARD
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, speed);
+  } 
+  else {                        // STOP
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENB, 0);
+  }
+}
+
+// ================== MOVEMENT ==================
+void moveForward() {
+  motorA(BASE_SPEED);
+  motorB(BASE_SPEED);
+}
+
+void stopMotors() {
+  motorA(0);
+  motorB(0);
+}
+
+// ================= SETUP =================
+void setup() {
+  // Motor pins config
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+   
+  // 1. Start Moving
+  moveForward();
+
+  // 2. Wait for 10 seconds
+  delay(10000);
+
+  // 3. Stop
+  stopMotors();
+}
+
+// ================= LOOP =================
+void loop() {
+  // Empty because everything happens once in setup
+}
