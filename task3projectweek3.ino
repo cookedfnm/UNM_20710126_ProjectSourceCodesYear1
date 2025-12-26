@@ -20,10 +20,10 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 // Forward speed (constant)
 const int FORWARD_SPEED = 120;
 
-// Turning / avoiding speed (CHANGE THIS if you want a stronger/weaker turn)
+// Turning / avoiding speed 
 int TURN_SPEED = 160;
 
-// How close before we react (cm) – adjust as needed
+// How close before we react (cm)
 const int OBSTACLE_DISTANCE_CM = 20;
 
 // How long to turn right when avoiding (ms)
@@ -157,3 +157,4 @@ void loop() {
   // Small delay to avoid spamming ultrasonic sensor too fast
   delay(50);
 }
+
