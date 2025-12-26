@@ -2,7 +2,6 @@
 #include <PinChangeInterrupt.h>
 
 // ================= MOTOR & SENSOR PINS =================
-// (These are from YOUR earlier code – keep if wiring is same)
 const int ENA = 3;    // Right motor PWM
 const int IN1 = A3;   // Right motor direction 1
 const int IN2 = 13;   // Right motor direction 2
@@ -22,7 +21,6 @@ volatile long pulsesLeft  = 0;
 volatile long pulsesRight = 0;
 
 // ================= ENCODER PARAMETERS =================
-// CHANGE THESE TO MATCH YOUR ROBOT
 const int   PULSES_PER_REV   = 10.8;       // slots per encoder disc
 const float WHEEL_DIAMETER   = 0.067;    // wheel diameter in meters (67 mm)
 const float WHEEL_CIRC       = 3.14159265359 * WHEEL_DIAMETER;  // circumference
@@ -47,7 +45,7 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 unsigned long start_time = 0;
 bool isMoving = false;
 
-// 🔴 NEW: pause flag so we only stop at 1.8m once
+// pause flag so we only stop at 1.8m once
 bool pauseDone = false;
 
 // ================= INTERRUPTS =================
@@ -264,7 +262,7 @@ void loop() {
   // 4. (0,0) → both sensors on BLACK
   else if (L == 0 && R == 0) {
     if (minTimeReached) {
-      // ✅ ONLY STOP if 16.5s has passed AND both sensors are black
+      // ONLY STOP if 16.5s has passed AND both sensors are black
       stopMotors();
       isMoving = false;
 
